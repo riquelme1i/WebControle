@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle de Nível de Água - Projeto Integrador</title>
+  <style>
+    :root {
+      --bg: #071b2c;
+      --panel: #0f3057;
+      --panel-alt: #112f4f;
+      --accent: #38b6ff;
+      --danger: #ff4d4f;
+      --text: #e9f4ff;
+      --muted: #b3c7d9;
+      --success: #4ce07a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, sans-serif;
+      background: radial-gradient(circle at top, rgba(56, 182, 255, 0.18), transparent 35%),
+        linear-gradient(180deg, #071b2c 0%, #071b2c 100%);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+
+    .container {
+      width: min(100%, 980px);
+      background: rgba(7, 27, 44, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+      overflow: hidden;
+    }
+
+    header {
+      padding: 32px;
+      background: linear-gradient(135deg, rgba(56, 182, 255, 0.14), rgba(255, 255, 255, 0.04));
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 2.5vw, 2.8rem);
+      letter-spacing: -0.04em;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 780px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+      padding: 32px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 22px;
+      padding: 28px;
+      min-height: 260px;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 18px;
+      font-size: 1.25rem;
+    }
+
+    .field {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .field label {
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    input[type="number"],
+    input[type="range"] {
+      width: 100%;
+      border-radius: 14px;
+      border: none;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font-size: 1rem;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      appearance: none;
+      margin: 0;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 16px;
+      padding: 16px 22px;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+      color: var(--text);
+      background: var(--accent);
+      box-shadow: 0 12px 30px rgba(56, 182, 255, 0.16);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      box-shadow: none;
+    }
+
+    button.danger {
+      background: linear-gradient(135deg, #ff4d4f 0%, #d32f2f 100%);
+    }
+
+    .indicator {
+      display: grid;
+      gap: 16px;
+      padding: 22px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      text-align: center;
+    }
+
+    .indicator .meter {
+      width: 100%;
+      height: 240px;
+      border-radius: 32px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .indicator .meter::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top, rgba(255, 255, 255, 0.12), transparent 52%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 72%);
+      pointer-events: none;
+    }
+
+    .water {
+      width: 100%;
+      background: linear-gradient(180deg, #38b6ff 0%, #1764a2 100%);
+      border-top-left-radius: 30px;
+      border-top-right-radius: 30px;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      transition: height 0.35s ease;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 16px;
+      color: white;
+      font-weight: 700;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+    }
+
+    .status {
+      font-size: 0.92rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .lamp-row {
+      display: flex;
+      gap: 18px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 12px 0 8px;
+    }
+
+    .lamp {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--text);
+    }
+
+    .lamp-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.04);
+      display: inline-block;
+      transition: background 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+
+    .lamp-dot.on {
+      background: var(--success);
+      box-shadow: 0 0 0 4px rgba(76, 224, 122, 0.14), 0 0 22px rgba(76, 224, 122, 0.65);
+      filter: saturate(1.1);
+    }
+
+    .lamp-dot.off {
+      background: rgba(255, 255, 255, 0.22);
+      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.04), 0 0 18px rgba(255, 255, 255, 0.10);
+    }
+
+    .lamp-label {
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
+
+    .note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.94rem;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .footer {
+      padding: 24px 32px 32px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .footer small {
+      display: block;
+    }
+
+    @media (max-width: 820px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Controle do Tanque de Água</h1>
+      <p>Interface web para o projeto integrador de controle de nível com ESP32.</p>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Definir Nível Desejado</h2>
+        <div class="field">
+          <label for="desiredLevel">Nível desejado (%):</label>
+          <input id="desiredLevel" type="number" min="0" max="100" value="50" />
+        </div>
+
+        <div class="field">
+          <label for="levelRange">Ajustar com o controle deslizante</label>
+          <input id="levelRange" type="range" min="0" max="100" value="50" />
+        </div>
+
+        <div class="field">
+          <label for="esp32Ip">IP do ESP32:</label>
+          <input id="esp32Ip" type="text" placeholder="192.168.4.1" value="192.168.4.1" />
+        </div>
+
+        <div class="button-row">
+          <button id="sendButton" type="button">Enviar nível desejado</button>
+          <button id="emergencyButton" class="danger" type="button">Parar tudo</button>
+        </div>
+
+      </section>
+
+      <section class="card indicator">
+        <h2>Indicador de Nível do Tanque</h2>
+        <div class="meter" aria-label="Indicador de nível de água">
+          <div id="waterFill" class="water" style="height: 50%;">50%</div>
+        </div>
+
+        <div class="status">
+          <p><strong>Nível atual do tanque:</strong> <span id="currentLevelText">50%</span></p>
+          <div class="lamp-row" aria-label="Indicadores de atuadores">
+            <div class="lamp">
+              <span id="lampBomba" class="lamp-dot off" aria-label="Bomba"></span>
+              <span class="lamp-label">Bomba</span>
+            </div>
+            <div class="lamp">
+              <span id="lampValvula" class="lamp-dot off" aria-label="Válvula"></span>
+              <span class="lamp-label">Válvula</span>
+            </div>
+          </div>
+          <p><strong>Status:</strong> <span id="connectionStatus">Pronto para conexão local</span></p>
+        </div>
+      </section>
+    </div>
+
+  <script>
+    const desiredLevelInput = document.getElementById('desiredLevel');
+    const desiredRange = document.getElementById('levelRange');
+    const esp32IpInput = document.getElementById('esp32Ip');
+    const currentLevelText = document.getElementById('currentLevelText');
+    const waterFill = document.getElementById('waterFill');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const sendButton = document.getElementById('sendButton');
+    const emergencyButton = document.getElementById('emergencyButton');
+    const lampBomba = document.getElementById('lampBomba');
+    const lampValvula = document.getElementById('lampValvula');
+
+    function clampPercent(value) {
+      if (!Number.isFinite(value)) return 0;
+      return Math.min(100, Math.max(0, Math.round(value)));
+    }
+
+    function updateDesiredLevel(value) {
+      desiredLevelInput.value = value;
+      desiredRange.value = value;
+    }
+
+    function getEsp32Url(path) {
+      const ip = esp32IpInput.value.trim() || '192.168.4.1';
+      return `http://${ip}${path}`;
+    }
+
+    function updateTankIndicator(value) {
+      const clamped = clampPercent(value);
+      currentLevelText.textContent = `${clamped}%`;
+      waterFill.style.height = `${clamped}%`;
+      waterFill.textContent = `${clamped}%`;
+    }
+
+    function setLamp(el, isOn) {
+      if (!el) return;
+      el.classList.toggle('on', Boolean(isOn));
+      el.classList.toggle('off', !isOn);
+    }
+
+    function setConnectionStatus(text, color) {
+      connectionStatus.textContent = text;
+      connectionStatus.style.color = color || 'var(--muted)';
+    }
+
+    function sendDesiredLevel() {
+      const level = Number(desiredLevelInput.value);
+      if (Number.isNaN(level) || level < 0 || level > 100) {
+        alert('Digite um valor de 0 a 100 para o nível desejado.');
+        return;
+      }
+
+      setConnectionStatus('Enviando comando...', 'var(--accent)');
+      const url = getEsp32Url(`/set?level=${level}`);
+
+      fetch(url)
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        })
+        .then(data => {
+          console.log('Resposta do ESP32:', data);
+          setConnectionStatus('Comando enviado com sucesso', 'var(--success)');
+        })
+        .catch(error => {
+          console.error(error);
+          setConnectionStatus('Erro ao enviar comando', 'var(--danger)');
+        });
+    }
+
+    function emergencyStop() {
+      setConnectionStatus('Enviando parada de emergência...', 'var(--danger)');
+      const url = getEsp32Url('/parar');
+
+      fetch(url)
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        })
+        .then(data => {
+          console.log('Resposta do ESP32:', data);
+          setConnectionStatus('Parada de emergência acionada', 'var(--danger)');
+        })
+        .catch(error => {
+          console.error(error);
+          setConnectionStatus('Erro ao acionar parada', 'var(--danger)');
+        });
+    }
+
+    function refreshTankStatus() {
+      const url = getEsp32Url('/status');
+
+      fetch(url)
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        })
+        .then(data => {
+          updateTankIndicator(data?.nivel);
+          setLamp(lampBomba, Number(data?.bomba) === 1);
+          setLamp(lampValvula, Number(data?.valvula) === 1);
+          
+          setConnectionStatus('Conectado em tempo real', 'var(--success)');
+        })
+        .catch(error => {
+          console.error(error);
+          setConnectionStatus('Desconectado / ESP32 Offline', 'var(--danger)');
+        });
+    }
+
+    desiredLevelInput.addEventListener('input', event => {
+      const value = Number(event.target.value);
+      updateDesiredLevel(value);
+    });
+
+    desiredRange.addEventListener('input', event => {
+      const value = Number(event.target.value);
+      updateDesiredLevel(value);
+    });
+
+    sendButton.addEventListener('click', sendDesiredLevel);
+    emergencyButton.addEventListener('click', emergencyStop);
+
+    // Inicializa os valores da interface
+    updateDesiredLevel(50);
+    updateTankIndicator(50);
+    setConnectionStatus('Aguardando ação do usuário', 'var(--muted)');
+
+    // Atualização automática do nível a cada 2 segundos para valores precisos e sem sobrecarga
+    setInterval(refreshTankStatus, 500);
+  </script>
+</body>
+</html>
