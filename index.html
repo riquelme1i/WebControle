@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Controle de Nível de Água - Projeto Integrador</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     :root {
       --bg: #071b2c;
@@ -14,6 +17,7 @@
       --text: #e9f4ff;
       --muted: #b3c7d9;
       --success: #4ce07a;
+      --warning: #ffb84d;
     }
 
     * {
@@ -76,6 +80,10 @@
       min-height: 260px;
     }
 
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
     .card h2 {
       margin-top: 0;
       margin-bottom: 18px;
@@ -94,7 +102,8 @@
     }
 
     input[type="number"],
-    input[type="range"] {
+    input[type="range"],
+    input[type="text"] {
       width: 100%;
       border-radius: 14px;
       border: none;
@@ -133,14 +142,9 @@
       transform: translateY(1px);
     }
 
-    button.secondary {
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--text);
-      box-shadow: none;
-    }
-
     button.danger {
       background: linear-gradient(135deg, #ff4d4f 0%, #d32f2f 100%);
+      box-shadow: 0 12px 30px rgba(255, 77, 79, 0.16);
     }
 
     .indicator {
@@ -243,29 +247,12 @@
       letter-spacing: -0.01em;
     }
 
-    .note {
-      margin-top: 18px;
-      color: var(--muted);
-      font-size: 0.94rem;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 18px;
-      padding: 18px;
-    }
-
-    .footer {
-      padding: 24px 32px 32px;
-      color: var(--muted);
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    .footer small {
-      display: block;
+    /* Container do Gráfico */
+    .chart-container {
+      position: relative;
+      height: 300px;
+      width: 100%;
+      margin-top: 10px;
     }
 
     @media (max-width: 820px) {
@@ -304,7 +291,6 @@
           <button id="sendButton" type="button">Enviar nível desejado</button>
           <button id="emergencyButton" class="danger" type="button">Parar tudo</button>
         </div>
-
       </section>
 
       <section class="card indicator">
@@ -328,6 +314,13 @@
           <p><strong>Status:</strong> <span id="connectionStatus">Pronto para conexão local</span></p>
         </div>
       </section>
+
+      <section class="card full-width">
+        <h2>Gráfico em Tempo Real</h2>
+        <div class="chart-container">
+          <canvas id="liveChart"></canvas>
+        </div>
+      </section>
     </div>
 
   <script>
@@ -341,6 +334,92 @@
     const emergencyButton = document.getElementById('emergencyButton');
     const lampBomba = document.getElementById('lampBomba');
     const lampValvula = document.getElementById('lampValvula');
+
+    // ==========================================
+    // CONFIGURAÇÃO DO GRÁFICO (CHART.JS)
+    // ==========================================
+    const ctx = document.getElementById('liveChart').getContext('2d');
+    const maxDataPoints = 60; // Mantém os últimos 60 pontos no gráfico
+    
+    const liveChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [], // Eixo X (Tempo)
+        datasets: [
+          {
+            label: 'Nível Atual (%)',
+            data: [],
+            borderColor: '#38b6ff',
+            backgroundColor: 'rgba(56, 182, 255, 0.1)',
+            borderWidth: 2,
+            tension: 0.3, // Curva suave
+            fill: true,
+            pointRadius: 0
+          },
+          {
+            label: 'Nível Desejado (Setpoint) (%)',
+            data: [],
+            borderColor: '#ff4d4f',
+            borderWidth: 2,
+            borderDash: [5, 5], // Linha tracejada
+            tension: 0,
+            pointRadius: 0
+          },
+          {
+            label: 'Potência da Bomba (%)',
+            data: [],
+            borderColor: '#ffb84d', // Amarelo/Laranja para contrastar
+            borderWidth: 2,
+            tension: 0.3,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false, // Desativado para melhor performance nas atualizações frequentes
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+            ticks: { color: '#b3c7d9' }
+          },
+          x: {
+            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+            ticks: { color: '#b3c7d9', maxTicksLimit: 10 }
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#e9f4ff' } },
+          tooltip: { mode: 'index', intersect: false }
+        }
+      }
+    });
+
+    // Função para adicionar os novos dados ao gráfico
+    function updateChart(nivelAtual, nivelDesejado, potencia) {
+      const now = new Date();
+      // Formata a hora HH:MM:SS
+      const timeString = now.toLocaleTimeString('pt-BR', { hour12: false });
+
+      // Adiciona o novo rótulo (tempo) e os dados
+      liveChart.data.labels.push(timeString);
+      liveChart.data.datasets[0].data.push(nivelAtual);
+      liveChart.data.datasets[1].data.push(nivelDesejado);
+      liveChart.data.datasets[2].data.push(potencia || 0); // Se for null, considera 0
+
+      // Se passou do limite, remove o ponto mais antigo (rolagem)
+      if (liveChart.data.labels.length > maxDataPoints) {
+        liveChart.data.labels.shift();
+        liveChart.data.datasets.forEach(dataset => dataset.data.shift());
+      }
+
+      liveChart.update();
+    }
+    // ==========================================
+
 
     function clampPercent(value) {
       if (!Number.isFinite(value)) return 0;
@@ -433,6 +512,13 @@
           setLamp(lampValvula, Number(data?.valvula) === 1);
           
           setConnectionStatus('Conectado em tempo real', 'var(--success)');
+
+          // ==========================================
+          // Atualiza o gráfico com os dados recebidos
+          // O Nível Desejado pode ser pego do input local
+          // ==========================================
+          const setpointAtual = Number(desiredLevelInput.value);
+          updateChart(data?.nivel, setpointAtual, data?.potencia);
         })
         .catch(error => {
           console.error(error);
@@ -458,7 +544,7 @@
     updateTankIndicator(50);
     setConnectionStatus('Aguardando ação do usuário', 'var(--muted)');
 
-    // Atualização automática do nível a cada 2 segundos para valores precisos e sem sobrecarga
+    // Atualização automática a cada 500ms
     setInterval(refreshTankStatus, 500);
   </script>
 </body>
